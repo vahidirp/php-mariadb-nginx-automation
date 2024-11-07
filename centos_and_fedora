@@ -30,6 +30,24 @@ sudo dnf module reset php -y
 sudo dnf module enable php:remi-$php_version -y
 sudo dnf install -y php php-fpm php-curl php-json php-xml php-xmlrpc php-gd php-intl php-soap
 
+
+# Step 6.1: Update php.ini settings
+php_ini_path="/etc/php.ini"
+echo "Updating PHP settings in php.ini..."
+sudo sed -i 's/^max_input_time.*/max_input_time = 600/' "$php_ini_path"
+sudo sed -i 's/^upload_max_filesize.*/upload_max_filesize = 2048M/' "$php_ini_path"
+
+# Step 6.2: Update www.conf settings
+www_conf_path="/etc/php-fpm.d/www.conf"
+echo "Updating PHP-FPM settings in www.conf..."
+sudo sed -i 's/^pm.max_children.*/pm.max_children = 15/' "$www_conf_path"
+sudo sed -i 's/^pm.start_servers.*/pm.start_servers = 4/' "$www_conf_path"
+sudo sed -i 's/^pm.min_spare_servers.*/pm.min_spare_servers = 4/' "$www_conf_path"
+sudo sed -i 's/^pm.max_spare_servers.*/pm.max_spare_servers = 9/' "$www_conf_path"
+
+# Restart PHP-FPM to apply changes
+sudo systemctl restart php-fpm
+
 # Step 7: Install MariaDB with the specified version
 echo "Installing MariaDB $mariadb_version..."
 sudo curl -LsS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | sudo bash -s -- --mariadb-server-version=$mariadb_version
@@ -38,7 +56,18 @@ sudo systemctl enable mariadb
 sudo systemctl start mariadb
 mysql_secure_installation --use-default
 
-# Step 8: Create Nginx configuration file
+# Step 7.1: Create a user for phpMyAdmin in MariaDB
+echo "Creating phpMyAdmin database user..."
+sudo mysql -e "CREATE USER 'phpmyadmin'@'localhost' IDENTIFIED BY 'D3H0BqU30EyFe1M2';"
+sudo mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'phpmyadmin'@'localhost';"
+sudo mysql -e "FLUSH PRIVILEGES;"
+
+# Step 8: Install phpMyAdmin
+echo "Installing phpMyAdmin..."
+sudo dnf install -y phpmyadmin
+sudo ln -s /usr/share/phpMyAdmin /var/www/$hostname/phpmyadmin
+
+# Step 9: Create Nginx configuration file
 config_file="/etc/nginx/conf.d/${hostname}.conf"
 echo "Creating Nginx configuration at $config_file..."
 sudo mkdir -p /var/www/$hostname
@@ -92,3 +121,4 @@ certbot --nginx --agree-tos --email $EMAIL -d $hostname
 
 echo "Setup complete!"
 echo "Please put your files into /var/www/$hostname"
+echo "phpMyAdmin is available at http://$hostname/phpmyadmin"
