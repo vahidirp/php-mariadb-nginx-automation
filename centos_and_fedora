@@ -13,6 +13,7 @@ read -r -p "Enter MariaDB version (e.g., 10.3 or 11.4): " mariadb_version
 read -r -p "Enter your Email : " EMAIL
 
 # Update packages and install dependencies
+sudo sed -i --follow-symlinks 's/SELINUX=enforcing/SELINUX=permissive/g' /etc/sysconfig/selinux
 sudo dnf update -y
 sudo dnf install -y git wget curl zip unzip
 
